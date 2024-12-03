@@ -1,7 +1,6 @@
 # Advent of Code Solutions
 
-Inputs are stored under `inputs/dayx`
-for example, the input for day 1 is in the file `inputs/day1`
+Inputs are stored under `inputs/dayx`. For example, the input for day 1 is in the file `inputs/day1`
 
 To get the answer for a specific day/part, run
 ```
