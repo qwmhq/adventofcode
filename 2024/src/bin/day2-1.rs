@@ -2,7 +2,7 @@ use std::fs::File;
 use std::io::{self, BufRead};
 
 fn main() -> io::Result<()> {
-    let path = "input";
+    let path = "inputs/day2";
     let mut reports = Vec::new();
     let mut safe_reports = 0;
 
@@ -21,19 +21,6 @@ fn main() -> io::Result<()> {
     for report in reports {
         if is_safe(&report) {
             safe_reports += 1;
-            continue;
-        }
-        for i in 0..report.len() {
-            let report = report
-                .iter()
-                .enumerate()
-                .filter(|(j, _)| *j != i)
-                .map(|(_, v)| *v)
-                .collect::<Vec<_>>();
-            if is_safe(&report) {
-                safe_reports += 1;
-                break;
-            }
         }
     }
 

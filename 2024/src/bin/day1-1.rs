@@ -2,7 +2,7 @@ use std::fs::File;
 use std::io::{self, BufRead};
 
 fn main() -> io::Result<()> {
-    let path = "input";
+    let path = "inputs/day1";
     let mut left_list = Vec::new();
     let mut right_list = Vec::new();
     let mut distance_sum = 0;

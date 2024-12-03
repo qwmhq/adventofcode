@@ -3,7 +3,7 @@ use std::fs::File;
 use std::io::{self, BufRead};
 
 fn main() -> io::Result<()> {
-    let path = "input";
+    let path = "inputs/day1";
     let mut left_list = Vec::new();
     let mut right_dict = HashMap::new();
     let mut similarity_score = 0;

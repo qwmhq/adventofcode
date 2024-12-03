@@ -3,7 +3,7 @@ use std::fs::File;
 use std::io::{self, BufRead};
 
 fn main() -> io::Result<()> {
-    let path = "input";
+    let path = "inputs/day3";
     let mut result = 0;
 
     let file = File::open(path)?;
