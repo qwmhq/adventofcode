@@ -1,116 +1,122 @@
+use std::collections::HashSet;
 use std::fs::File;
 use std::io::{self, BufRead, Write};
 
-fn main() -> io::Result<()> {
+fn main() {
     let path = "inputs/day6";
 
-    let map = parse_map(path)?;
+    let map = parse_map(path);
 
-    // println!("part 1 result: {:?}", solve_part1(&map));
+    println!("part 1 result: {:?}", solve_part1(&map));
     println!("part 2 result: {:?}", solve_part2(&map));
-
-    Ok(())
 }
 
 fn solve_part1(map: &Vec<Vec<char>>) -> u64 {
     let mut map = map.clone();
     let initial_position = get_position(&map).unwrap();
     let mut position = initial_position.clone();
-    loop {
-        map[position.y as usize][position.x as usize] = 'X';
-        move_once(&map, &mut position);
 
-        if position.x < 0
-            || position.x >= map[0].len() as i64
-            || position.y < 0
-            || position.y >= map.len() as i64
-        {
-            break;
-        }
+    while let Some(next_position) = position.get_next_on_map(&map) {
+        position = next_position;
+        set_marker_at_position(&mut map, &position, 'X');
     }
     get_visited_positions(&map)
 }
 
-fn solve_part2(map: &Vec<Vec<char>>) -> u64 {
-    // idea is to put an obstacle anywhere that would result in a right turn unto a path that has
-    // been taken previously in the same direction that would result from the right turn
-    let mut map = map.clone();
-    let initial_position = get_position(&map).unwrap();
-    let mut position = initial_position.clone();
-
-    let mut obstruction_positions = 0;
-    loop {
-        let prev_position = position;
-        let prev_marker = map[position.y as usize][position.x as usize];
-        let mut new_marker = match position.direction {
-            Direction::North | Direction::South => '|',
-            Direction::East | Direction::West => '-',
-        };
-
-        let position_after_right_turn = Position {
-            direction: position.direction.turn_right(),
-            ..position
-        }
-        .get_next();
-
-        if position_after_right_turn.x >= 0
-            && position_after_right_turn.x < map[0].len() as i64
-            && position_after_right_turn.y >= 0
-            && position_after_right_turn.y < map.len() as i64
-        {
-            let marker =
-                map[position_after_right_turn.y as usize][position_after_right_turn.x as usize];
-            let direction = position_after_right_turn.direction;
-            if marker == '+'
-                || marker == '|' && (direction == Direction::North || direction == Direction::South)
-                || marker == '-' && (direction == Direction::East || direction == Direction::West)
-            {
-                obstruction_positions += 1;
-            }
-        }
-
-        move_once(&map, &mut position);
-
-        if prev_position.direction != position.direction
-            || prev_marker == '|' && new_marker == '-'
-            || prev_marker == '-' && new_marker == '|'
-        {
-            new_marker = '+';
-        }
-
-        map[prev_position.y as usize][prev_position.x as usize] = new_marker;
-
-        if position.x < 0
-            || position.x >= map[0].len() as i64
-            || position.y < 0
-            || position.y >= map.len() as i64
-        {
-            break;
-        }
-    }
-
+fn print_map_to_file(map: &Vec<Vec<char>>, filepath: &str) {
     // write the final map to an output file
-    map[initial_position.y as usize][initial_position.x as usize] = '^';
-    let mut file = File::create("output_day6").expect("couldnt create file");
+    let mut file = File::create(filepath).expect("couldn't create file");
     for line in map.into_iter().map(|x| String::from_iter(x)) {
-        writeln!(file, "{}", line).expect("unable to write to file");
+        writeln!(file, "{}", line).expect("couldn't write to file");
     }
-
-    obstruction_positions
 }
 
-fn parse_map(path: &str) -> io::Result<Vec<Vec<char>>> {
-    let file = File::open(path)?;
+fn mark_map(map: &mut Vec<Vec<char>>, position: &Position, next_position: &Position) {
+    let prev_marker = get_marker_at_position(&map, &position);
+    let mut new_marker = match position.direction {
+        Direction::North | Direction::South => '|',
+        Direction::East | Direction::West => '-',
+    };
+    if position.direction != next_position.direction
+        || prev_marker == '|' && new_marker == '-'
+        || prev_marker == '-' && new_marker == '|'
+    {
+        new_marker = '+';
+    }
+    set_marker_at_position(map, position, new_marker);
+}
+
+fn solve_part2(map: &Vec<Vec<char>>) -> u64 {
+    let map = map.clone();
+    let initial_position = get_position(&map).unwrap();
+
+    // get all the positions that would be visited by the guard normally
+    let mut visited_without_obstacles: HashSet<Position> = HashSet::new();
+    let mut position = initial_position.clone();
+    visited_without_obstacles.insert(initial_position);
+    while let Some(next_position) = position.get_next_on_map(&map) {
+        visited_without_obstacles.insert(next_position);
+        position = next_position;
+    }
+
+    let mut obstruction_positions = 0;
+    for y in 0..map.len() {
+        for x in 0..map[0].len() {
+            if initial_position.x as usize == x && initial_position.y as usize == y
+                || map[y][x] == '#'
+            {
+                continue;
+            }
+            let mut test_map = map.clone();
+            test_map[y][x] = 'O';
+
+            let mut p = initial_position;
+            let mut visited: HashSet<Position> = HashSet::new();
+
+            visited.insert(p);
+            while let Some(next_p) = p.get_next_on_map(&test_map) {
+                if visited.contains(&next_p) {
+                    obstruction_positions += 1;
+                    println!(
+                        "(x: {x}, y: {y}); obstruction_positions so far: {obstruction_positions}"
+                    );
+                    break;
+                }
+                p = next_p;
+                visited.insert(next_p);
+            }
+        }
+    }
+    return obstruction_positions;
+}
+
+fn position_within_map(map: &Vec<Vec<char>>, position: &Position) -> bool {
+    position.x >= 0
+        && position.x < map[0].len() as i64
+        && position.y >= 0
+        && position.y < map.len() as i64
+}
+
+fn get_marker_at_position(map: &Vec<Vec<char>>, position: &Position) -> char {
+    map[position.y as usize][position.x as usize]
+}
+
+fn set_marker_at_position(map: &mut Vec<Vec<char>>, position: &Position, c: char) {
+    map[position.y as usize][position.x as usize] = c;
+}
+
+fn parse_map(path: &str) -> Vec<Vec<char>> {
+    let file = File::open(path).expect("unable to read input file");
     let reader = io::BufReader::new(file);
 
     let mut map: Vec<Vec<char>> = Vec::new();
 
     for line in reader.lines() {
-        let line = line?;
+        let line = line.expect("problem reading line");
         map.push(line.chars().collect::<Vec<_>>());
     }
 
-    Ok(map)
+    map
 }
 
 fn get_position(map: &Vec<Vec<char>>) -> Option<Position> {
@@ -142,7 +148,7 @@ fn get_visited_positions(map: &Vec<Vec<char>>) -> u64 {
     let mut visited_positions = 0;
     for i in 0..map.len() {
         for j in 0..map[i].len() {
-            if map[i][j] == 'X' {
+            if map[i][j] == 'X' || "^V<>".contains(map[i][j]) {
                 visited_positions += 1;
             }
         }
@@ -150,24 +156,7 @@ fn get_visited_positions(map: &Vec<Vec<char>>) -> u64 {
     visited_positions
 }
 
-fn move_once(map: &Vec<Vec<char>>, position: &mut Position) {
-    let new_position = position.get_next();
-
-    let x = new_position.x;
-    let y = new_position.y;
-
-    if x >= 0 && x < map[0].len() as i64 && y >= 0 && y < map.len() as i64 {
-        if map[y as usize][x as usize] == '#' {
-            position.direction = position.direction.turn_right();
-            *position = position.get_next();
-            return;
-        }
-    }
-
-    *position = new_position;
-}
-
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 struct Position {
     x: i64,
     y: i64,
@@ -185,9 +174,25 @@ impl Position {
         }
         new_position
     }
+
+    fn get_next_on_map(&self, map: &Vec<Vec<char>>) -> Option<Self> {
+        let mut new_position = self.get_next();
+
+        if position_within_map(map, &new_position) {
+            if "#O".contains(get_marker_at_position(map, &new_position)) {
+                new_position = Position {
+                    direction: self.direction.turn_right(),
+                    ..*self
+                }
+                .get_next();
+            }
+            return Some(new_position);
+        }
+        return None;
+    }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 enum Direction {
     North,
     East,
